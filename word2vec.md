@@ -40,25 +40,144 @@ Download [Python](https://www.python.org/downloads/) and [Pip](https://pip.pypa.
 ```
 pip3 install tensorflow
 pip3 install gensim
-pip3 install word2vec
+pip3 install nltk
 ```
-
 
 ## 1.0 Background
 
-### 1.1 Word Embeddings
+Working off of the knowledge we gained from the [Intro NLP](learn.adicu.com/nlp), [Intermediate NLP](learn.adicu.com/intermediate-nlp), and [Deep Learning](learn.adicu.com/dl-python) workshops, we'll spend this tutorial covering the basics of how these fields intersect. 
 
-Image and audio processing systems work with high-dimensional datasets encoded as vectors of the raw pixel-intensities for image data. For tasks like speech recognition we know that all the information required to successfully perform the task is encoded in the data. However, natural language processing systems traditionally treat words as discrete atomic symbols, and therefore 'cat' may be represented as Id537 and 'dog' as Id143. These encodings are arbitrary, and provide no useful information to the system regarding the relationships that may exist between the individual symbols. 
+With that said, we'll begin by overviewing some of the fundamental concepts of this intersection.  
+
+### 1.1 Vector Space Models
+
+A vector space search involves converting documents into vectors, where each dimension within the vectors represents a term. VSMs represent embedded words in a continuous vector space where semantically similar words are mapped to nearby points. 
+
+
+#### 1.1.1 Distributional Hypothesis
+
+Vector Space Model methods depend highly on the Distributional Hypothesis, which states that words that appear in the same contexts share semantic meaning. The different approaches that leverage this principle can be divided into two categories: count-based methods and predictive methods. 
+
+
+#### 1.1.2 Stemming & Stop Words
+
+To begin implementing a Vector Space Model, first you must get all terms within documents and clean them. A tool you will likely utilize for this process is a stemmer, takes words and reduces them to the unchanging portion. Words which have a common stem often have similar meanings, which is why you'd likely want to utilize a stemmer.
+
+We will also want to remove any stopwords, such as a, am, an, also ,any, and, etc. Stop words have little value in this search so it's better that we just get rid of them. 
+
+Just as we've seen before, this is what that code might look like:
+
+``` python
+stemmer = PorterStemmer()
+
+def removeStopWords(stopwords, list):
+    return([word for word in list if word not in stopwords])
+
+
+def tokenise(words, string):
+    string = self.clean(string)
+    words = string.split(" ")
+    return ([self.stemmer.stem(word,0,len(word)-1) for word in words])
+```
+
+#### 1.1.3 Map Keywords to Vector Dimensions
+
+Next, we'll map the vector dimensions to keywords using a dictionary.
+
+``` python
+def getVectorKeywordIndex(documentList):
+        """create the keyword associated to the position of the elements within the document vectors"""
+
+        # Maps documents into a single word string
+        vocabularyString = " ".join(documentList)
+
+        vocabularyList = self.parser.tokenise(vocabularyString)
+
+        vocabularyList = self.parser.removeStopWords(vocabularyList)
+        uniqueVocabularyList = util.removeDuplicates(vocabularyList)
+
+        vectorIndex={}
+        offset=0
+        # Associate a position with the keywords which maps to the dimension on the vector used to represent this word
+        for word in uniqueVocabularyList:
+                vectorIndex[word]=offset
+                offset+=1
+        return(vectorIndex)  
+```
+
+#### 1.1.4 Map Document Strings to Vectors
+
+We use the Simple Term Count Model to map the documents 
+
+``` python
+def makeVector(wordString):
+
+        # Initialise vector with 0's
+        vector = [0] * len(self.vectorKeywordIndex)
+        wordList = self.parser.tokenise(wordString)
+        wordList = self.parser.removeStopWords(wordList)
+        for word in wordList:
+                vector[self.vectorKeywordIndex[word]] += 1; # Use Simple Term Count Model
+        return(vector)
+```
+
+#### 1.1.5 Find Related Documents
+
+We now have the ability to find related documents. We can test if two documents are in the same concept space by looking at the the cosine of the angle between the document vectors. We use the cosine of the angle as a metric for comparison. If the cosine is 1 then the angle is 0° and hence the vectors are parallel (and the document terms are related). If the cosine is 0 then the angle is 90° and the vectors are perpendicular (and the document terms are not related).
+
+We calculate the cosine between the document vectors in python using scipy.
+
+``` python
+def cosine(vector1, vector2):
+        """related documents j and q are in the concept space by comparing the vectors:
+                cosine  = ( V1 * V2 ) / ||V1|| x ||V2|| """
+        return(float(dot(vector1,vector2) / (norm(vector1) * norm(vector2))))
+```
+
+#### 1.1.6 Search Vector Space
+
+In order to perform a search across keywords we need to map the keywords to the vector space. We create a temporary document which represents the search terms and then we compare it against the document vectors using the same cosine measurement mentioned for relatedness.
+
+``` python
+def search(searchList, documentVectors):
+        """ search for documents that match based on a list of terms """
+        queryVector = self.buildQueryVector(searchList)
+
+        ratings = [util.cosine(queryVector, documentVector) for documentVector in documentVectors]
+        ratings.sort(reverse=True)
+        return(ratings)
+```
+
+### 1.2 Autoencoders
+
+Autoencoders are a type of neural network designed for dimensionality reduction; in other words, representing the same information with fewer numbers. A wide range of autoencoder architectures exist, including Denoising Autoencoders, Variational Autoencoders, or Sequence Autoencoders. 
+
+The basic premise is simple — we take a neural network and train it to spit out the same information it’s given. By doing so, we ensure that the activations of each layer must, by definition, be able to represent the entirety of the input data. 
+
+#### 1.2.1 How do Autencoders work? 
+
+If each layer is the same size as the input, this becomes trivial, and the data can simply be copied over from layer to layer to the output. But if we start changing the size of the layers, the network inherently learns a new way to represent the data. If the size of one of the hidden layers is smaller than the input data, it has no choice but to find some way to compress the data.
+
+And that’s exactly what an autoencoder does. The network starts out by “compressing” the data into a lower-dimensional representation, and then converts it back to a reconstruction of the original input. If the network converges properly, it will be a more compressed version of the data that encodes the same information. 
+
+It’s often helpful to think about the network as an “encoder” and a “decoder”. The first half of the network, the encoder, takes the input and transforms it into the lower-dimensional representation. The decoder then takes that lower-dimensional representation and converts it back to the original image (or as close to it as it can get). The encoder and decoder are still trained together, but once we have the weights, we can use the two separately — maybe we use the encoder to generate a more meaningful representation of some data we’re feeding into another neural network, or the decoder to let the network generate new data we haven’t shown it before.
+
+#### 1.2.2 Why are Autoencoders Important?
+
+Because some of your features may be redundant or correlated, you can end up with wasted processing time and an overfitted model - Autoencoders help us avoid that.
+
+### 1.3 Word Embeddings
+
+Like an autoencoder, this type of model learns a vector space embedding for some data. For tasks like speech recognition we know that all the information required to successfully perform the task is encoded in the data. However, natural language processing systems traditionally treat words as discrete atomic symbols, and therefore 'cat' may be represented as Id537 and 'dog' as Id143. These encodings are arbitrary, and provide no useful information to the system regarding the relationships that may exist between the individual symbols. 
 
 This means that the model can leverage very little of what it has learned about 'cats' when it is processing data about 'dogs' (such that they are both animals, four-legged, pets, etc.). Representing words as unique, discrete IDs furthermore leads to data sparsity, and usually means that we may need more data in order to successfully train statistical models. However, using vector representations can overcome some of these obstacles.
 
- 
 
-### 1.2 Word2Vec
+### 1.4 Word2Vec
 
-Word2vec is a computationally efficient predictive model for learning word embeddings from raw text. It comes in two models: the Continuous Bag-of-Words model (CBOW) and the Skip-Gram model. Algorithmically, these models are similar, except that CBOW predicts target words (e.g. 'mat') from source context words ('the cat sits on the'), while the skip-gram does the inverse and predicts source context-words from the target words. 
+Word2vec is an efficient predictive model for learning word embeddings from raw text. It comes in two models: the <b>Continuous Bag-of-Words model (CBOW)</b> and the <b>Skip-Gram model</b>. Algorithmically, these models are similar, except that CBOW predicts target words (e.g. 'mat') from source context words ('the cat sits on the'), while the skip-gram does the inverse and predicts source context-words from the target words. 
 
-The easiest way to think about word2vec is that it figures out how to place words on a graph in such a way that their location is determined by their meaning. In other words, words with similar meanings will be clustered together. More interestingly, though, is that the gaps and distances on the graph have meaning as well. If you go to where “king” appears, and move the same distance and direction between “man” and “woman”, you end up where “queen” appears. And this is true of all kinds of semantic relationships! You can look at this visualization [here](https://www.tensorflow.org/versions/master/images/linear-relationships.png).
+The easiest way to think about word2vec is that it figures out how to place words on a graph in such a way that their location is determined by their meaning. In other words, words with similar meanings will be clustered together. More interestingly, though, is that the gaps and distances on the graph have meaning as well. So if you go to where “king” appears, and move the same distance and direction between “man” and “woman”, you end up where “queen” appears. And this is true of all kinds of semantic relationships! You can look at this visualization [here](https://www.tensorflow.org/versions/master/images/linear-relationships.png).
 
 Put more mathematically, you can think of this relationship as: 
 
@@ -66,11 +185,10 @@ Put more mathematically, you can think of this relationship as:
 [king] - [man] + [woman] ~= [queen]
 ```
 
+### 1.5 Skip-gram Model
 
-### 1.3 Skip-gram Model
 
-
-#### 1.3.1 Inputs
+#### 1.5.1 Inputs
 
 The input of the skip-gram model is a single word, `w_n`. For example, in the following sentence:
 
@@ -81,7 +199,7 @@ I drove my car to school.
 "car" could be the input, or "school". 
 
 
-#### 1.3.2 Outputs
+#### 1.5.2 Outputs
 
 The output of a skip-gram model is the words in `w_n`s context. Going along with the example from before, the output would be:
 
@@ -92,133 +210,33 @@ The output of a skip-gram model is the words in `w_n`s context. Going along with
 This output is defined as `{w_O,1 , ... , w_O,C }`, where C is the word window size that you define. 
 
 
-### 1.4 Autoencoders
+### 1.6 Continuous Bag-of-Words model 
 
+#### 1.6.1 Inputs
 
-Autoencoders are a kind of neural network designed for dimensionality reduction; in other words, representing the same information with fewer numbers. A wide range of autoencoder architectures exist, including Denoising Autoencoders, Variational Autoencoders, or Sequence Autoencoders. 
+This input is defined as `{w_O,1 , ... , w_O,C }`, where C is the word window size that you define. For example, the input could be:
 
-The basic premise is simple — we take a neural network and train it to spit out the same information it’s given. By doing so, we ensure that the activations of each layer must, by definition, be able to represent the entirety of the input data. 
+``` 
+{"I","drove","my","to","school"}
+```
 
-#### 1.4.1 How do Autencoders work? 
+#### 1.6.2 Outputs 
 
-If each layer is the same size as the input, this becomes trivial, and the data can simply be copied over from layer to layer to the output. But if we start changing the size of the layers, the network inherently learns a new way to represent the data. If the size of one of the hidden layers is smaller than the input data, it has no choice but to find some way to compress the data.
+The output of the neural network will be `w_i`. Hence you can think of the task as "predicting the word given its context". Note that the number of words we use depends on your setting for the window size.
 
-And that’s exactly what an autoencoder does. The network starts out by “compressing” the data into a lower-dimensional representation, and then converts it back to a reconstruction of the original input. If the network converges properly, it will be a more compressed version of the data that encodes the same information. 
+``` 
+I drove my car to school.
+```
 
-It’s often helpful to think about the network as an “encoder” and a “decoder”. The first half of the network, the encoder, takes the input and transforms it into the lower-dimensional representation. The decoder then takes that lower-dimensional representation and converts it back to the original image (or as close to it as it can get). The encoder and decoder are still trained together, but once we have the weights, we can use the two separately — maybe we use the encoder to generate a more meaningful representation of some data we’re feeding into another neural network, or the decoder to let the network generate new data we haven’t shown it before.
+"car" could be the output.
 
-#### 1.4.2 Why are Autoencoders Important?
-
-Because some of your features may be redundant or correlated, this can result in wasted processing time and overfitting in your model! Autoencoders help us avoid that pitfall!
-
-
-
-### 1.5 Fine-Tuning
+### 1.7 Fine-Tuning
 
 Fine-Tuning refers to the technique of initializing a network with parameters from another task (such as an unsupervised training task), and then updating these parameters based on the task at hand. For example, NLP architecture often use pre-trained word embeddings like word2vec, and these word embeddings are then updated during training based for a specific task like Sentiment Analysis.
 
-### 1.6 Glove
+### 1.8 Glove
 
 GloVe is an unsupervised learning algorithm for obtaining vector representations (embeddings) for words. GloVe vectors serve the same purpose as word2vec but have different vector representations due to being trained on co-occurrence statistics.
-
-
-### 1.7 Vector Space Models
-
-A vector space search involves converting documents into vectors, where each dimension within the vectors represents a term. VSMs represent embedded words in a continuous vector space where semantically similar words are mapped to nearby points. 
-
-#### 1.7.1 Distributional Hypothesis
-
-VSMs methods depend highly on the Distributional Hypothesis, which states that words that appear in the same contexts share semantic meaning. The different approaches that leverage this principle can be divided into two categories: count-based methods and predictive methods. 
-
-
-#### 1.7.2 Stemming & Stop Words
-
-To begin implementing a Vector Space Model, first you must get all terms within documents and clean them. A tool you will likely utilize for this process is a stemmer, which you might recall takes words and reduces them to the base (or unchanging portion). Words which have a common stem often have similar meanings, which is why you'd likely want to utilize a stemmer.
-
-We will also want to remove any stopwords, such as a, am, an, also ,any, and, etc. Stop words have little value in this search so it's better that we just get rid of them. 
-
-Just as we've seen before, this is what that code might look like:
-
-``` python
- self.stemmer = PorterStemmer()
-
-def removeStopWords(self,list):
-	return([word for word in list if word not in self.stopwords])
-
-
-def tokenise(self, string):
-	string = self.clean(string)
-    words = string.split(" ")
-	return ([self.stemmer.stem(word,0,len(word)-1) for word in words])
-```
-
-#### 1.7.3 Map Keywords to Vector Dimensions
-
-Next, we'll map the vector dimensions to keywords using a dictionary.
-
-``` python
-def getVectorKeywordIndex(self, documentList):
-        """ create the keyword associated to the position of the elements within the document vectors """
-
-        # Mapped documents into a single word string
-        vocabularyString = " ".join(documentList)
-
-        vocabularyList = self.parser.tokenise(vocabularyString)
-        # Remove common words which have no search value
-        vocabularyList = self.parser.removeStopWords(vocabularyList)
-        uniqueVocabularyList = util.removeDuplicates(vocabularyList)
-
-        vectorIndex={}
-        offset=0
-        # Associate a position with the keywords which maps to the dimension on the vector used to represent this word
-        for word in uniqueVocabularyList:
-                vectorIndex[word]=offset
-                offset+=1
-        return vectorIndex  #(keyword:position)
-```
-
-#### 1.7.4 Map Document Strings to Vectors
-
-We use the Simple Term Count Model to map the documents 
-
-``` python
-def makeVector(self, wordString):
-
-        # Initialise vector with 0's
-        vector = [0] * len(self.vectorKeywordIndex)
-        wordList = self.parser.tokenise(wordString)
-        wordList = self.parser.removeStopWords(wordList)
-        for word in wordList:
-                vector[self.vectorKeywordIndex[word]] += 1; # Use Simple Term Count Model
-        return vector
-```
-
-#### 1.7.5 Find Related Documents
-
-We now have the ability to find related documents. We can test if two documents are in the same concept space by looking at the the cosine of the angle between the document vectors. We use the cosine of the angle as a metric for comparison. If the cosine is 1 then the angle is 0° and hence the vectors are parallel (and the document terms are related). If the cosine is 0 then the angle is 90° and the vectors are perpendicular (and the document terms are not related).
-
-We calculate the cosine between the document vectors in python using scipy.
-
-``` python
-def cosine(vector1, vector2):
-        """ related documents j and q are in the concept space by comparing the vectors :
-                cosine  = ( V1 * V2 ) / ||V1|| x ||V2|| """
-        return float(dot(vector1,vector2) / (norm(vector1) * norm(vector2)))
-```
-
-#### 1.7.6 Search Vector Space
-
-In order to perform a search across keywords we need to map the keywords to the vector space. We create a temporary document which represents the search terms and then we compare it against the document vectors using the same cosine measurement mentioned for relatedness.
-
-``` python
-def search(self,searchList):
-        """ search for documents that match based on a list of terms """
-        queryVector = self.buildQueryVector(searchList)
-
-        ratings = [util.cosine(queryVector, documentVector) for documentVector in self.documentVectors]
-        ratings.sort(reverse=True)
-        return ratings
-```
 
 
 ## 2.0 LSTM Networks
@@ -230,7 +248,7 @@ LSTMs also have the same RNN chain-like structure, but the repeating module has 
 
 ### 2.1 First Step
 
-The first step in a LSTM is to decide what information is going to be thrown away from the cell state. This decision is made by a <b>sigmoid layer</b> called the “forget gate layer.” It outputs a number between 00 and 11 for each number in the cell state, where A 1 represents disposal and a 0 means storage.
+The first step in a LSTM is to decide what information is going to be thrown away from the cell state. This decision is made by a <b>sigmoid layer</b> called the “forget gate layer.” It outputs a number between 00 and 11 for each number in the cell state, where a 1 represents disposal and a 0 means storage.
 
 In the context of natural language processing, the cell state would include the gender of the present subject, so that the correct pronouns can be used in the future.
 
@@ -332,6 +350,147 @@ Previously, our filters would slide over local patches of an image, but in NLP w
 
 Putting all of this together, here's what an NLP Convolution Neural Network would look [like](http://d3kbpzbmcynnmx.cloudfront.net/wp-content/uploads/2015/11/Screen-Shot-2015-11-06-at-12.05.40-PM.png). 
 
+### 4.3 Tensorflow Implementation
+
+In this portion of the tutorial, we'll be implementing a CNN for text classification, using Tensorflow. 
+
+First, begin by importing the needed modules:
+
+``` python
+import tensorflow as tf
+import numpy as np
+```
+
+In this implementation, we'll allow hyperparameter configurations to be customizable so we'll create a TextCNN class, generating the model graph in the init function.
+
+
+``` python
+class TextCNN(object):
+    def __init__(self, sequence_length, num_classes, vocab_size, embedding_size, filter_sizes, num_filters):
+```
+
+Note the needed arguments to instantiate the class:
+
+- sequence_length: The length of our sentences
+- num_classes: Number of classes in the output layer, two in our case.
+- vocab_size: The size of our vocabulary. 
+- embedding_size: The dimensionality of our embeddings.
+- filter_sizes: The number of words we want our convolutional filters to cover.
+- num_filters: The number of filters per filter size.
+
+
+We then officially start by defining the input data that we pass to our network:
+
+``` python
+self.input_x = tf.placeholder(tf.int32, [None, sequence_length], name="input_x")
+self.input_y = tf.placeholder(tf.float32, [None, num_classes], name="input_y")
+self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")
+```
+
+The tf.placeholder creates a placeholder variable that we feed to the network when we execute it at train or test time. The second argument is the shape of the input tensor. None means that the length of that dimension could be anything. In our case, the first dimension is the batch size, and using None allows the network to handle arbitrarily sized batches.
+
+#### Embedding Layer
+
+The first layer we define is the embedding layer, which maps vocabulary word indices into low-dimensional vector representations. 
+
+``` python
+with tf.device('/cpu:0'), tf.name_scope("embedding"):
+    W = tf.Variable(
+        tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
+        name="W")
+    self.embedded_chars = tf.nn.embedding_lookup(W, self.input_x)
+    self.embedded_chars_expanded = tf.expand_dims(self.embedded_chars, -1)
+```
+
+- tf.device("/cpu:0"): This forces an operation to be executed on the CPU. By default TensorFlow will try to put the operation on the GPU if one is available, but the embedding implementation doesn’t currently have GPU support and throws an error if placed on the GPU.
+- tf.name_scope: This creates a new Name Scope with the name “embedding”. The scope adds all operations into a top-level node called “embedding” so that you get a nice hierarchy when visualizing your network in TensorBoard.
+- W: This is our embedding matrix that we learn during training. We initialize it using a random uniform distribution. 
+- tf.nn.embedding_lookup: This creates the actual embedding operation. The result of the embedding operation is a 3-dimensional tensor of shape [None, sequence_length, embedding_size].
+
+
+Now we’re ready to build our convolutional layers followed by max-pooling. Because each convolution produces tensors of different shapes we need to iterate through them, create a layer for each of them, and then merge the results into one big feature vector.
+
+``` python
+pooled_outputs = []
+for i, filter_size in enumerate(filter_sizes):
+    with tf.name_scope("conv-maxpool-%s" % filter_size):
+        # Convolution Layer
+        filter_shape = [filter_size, embedding_size, 1, num_filters]
+        W = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="W")
+        b = tf.Variable(tf.constant(0.1, shape=[num_filters]), name="b")
+        conv = tf.nn.conv2d(
+            self.embedded_chars_expanded,
+            W,
+            strides=[1, 1, 1, 1],
+            padding="VALID",
+            name="conv")
+        # Apply nonlinearity
+        h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
+        # Max-pooling over the outputs
+        pooled = tf.nn.max_pool(
+            h,
+            ksize=[1, sequence_length - filter_size + 1, 1, 1],
+            strides=[1, 1, 1, 1],
+            padding='VALID',
+            name="pool")
+        pooled_outputs.append(pooled)
+```
+Then, we combine all the pooled features:
+
+``` python
+num_filters_total = num_filters * len(filter_sizes)
+self.h_pool = tf.concat(3, pooled_outputs)
+self.h_pool_flat = tf.reshape(self.h_pool, [-1, num_filters_total])
+```
+
+- W: This is our filter matrix.
+- h: This is the result of applying the nonlinearity to the convolution output. Each filter slides over the whole embedding, but varies in how many words it covers. 
+- "VALID": This padding means that we slide the filter over our sentence without padding the edges, performing a narrow convolution that gives us an output of shape [1, sequence_length - filter_size + 1, 1, 1]. 
+- Performing max-pooling over the output of a specific filter size leaves us with a tensor of shape [batch_size, 1, 1, num_filters]. This is essentially a feature vector, where the last dimension corresponds to our features. Once we have all the pooled output tensors from each filter size we combine them into one long feature vector of shape [batch_size, num_filters_total]. 
+- Using -1 in tf.reshape tells TensorFlow to flatten the dimension when possible.
+
+### Dropout Layer
+
+Dropout is the perhaps most popular method to regularize convolutional neural networks. A dropout layer stochastically disables a fraction of its neurons, which prevents neurons from co-adapting and forces them to learn individually useful features. The fraction of neurons we keep enabled is defined by the dropout_keep_prob input to our network. 
+
+``` python
+with tf.name_scope("dropout"):
+    self.h_drop = tf.nn.dropout(self.h_pool_flat, self.dropout_keep_prob)
+```
+
+Using the feature vector from max-pooling (with dropout applied) we can generate predictions by doing a matrix multiplication and picking the class with the highest score. We could also apply a softmax function to convert raw scores into normalized probabilities, but that wouldn’t change our final predictions.
+
+``` python
+with tf.name_scope("output"):
+    W = tf.Variable(tf.truncated_normal([num_filters_total, num_classes], stddev=0.1), name="W")
+    b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
+    self.scores = tf.nn.xw_plus_b(self.h_drop, W, b, name="scores")
+    self.predictions = tf.argmax(self.scores, 1, name="predictions")
+```
+
+- tf.nn.xw_plus_b: This is a convenience wrapper to perform the Wx + b matrix multiplication.
+
+
+We can now define the loss function., which is a measurement of the error our network makes. Remember that our goal is to minimize this function. The standard loss function for categorization problems is the cross-entropy loss, which we implement here:
+
+``` python
+with tf.name_scope("loss"):
+    losses = tf.nn.softmax_cross_entropy_with_logits(self.scores, self.input_y)
+    self.loss = tf.reduce_mean(losses)
+``` 
+
+-tf.nn.softmax_cross_entropy_with_logits: This is the convenience function that calculates the cross-entropy loss for each class, given our scores and the correct input labels. We then take the mean of the losses. We could also use the sum, but that makes it harder to compare the loss across different batch sizes and train/dev data.
+
+We also define an expression for the accuracy, which is a useful quantity to keep track of during training and testing.
+
+``` python
+with tf.name_scope("accuracy"):
+    correct_predictions = tf.equal(self.predictions, tf.argmax(self.input_y, 1))
+    self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
+```
+
+And so now we’re done with our network definition!
+
 
 ## 5.0 Final Words
 
@@ -340,15 +499,7 @@ If you want to learn more about Deep Learning & Natural Language Processing, che
 
 ### 5.1 Resources
 
-[Natural Language Processing (almost) from Scratch](https://arxiv.org/abs/1103.0398) <br>
+[NLP from Scratch](https://arxiv.org/abs/1103.0398) <br>
 [Glove](http://nlp.stanford.edu/projects/glove/)
 
-
-### 5.2 More!
-
-Join us for more workshops! 
-
-[Wednesday, December 21st, 6:00pm: Intro to Data Science](https://www.meetup.com/Byte-Academy-Finance-and-Technology-community/events/236199419/) <br>
-[Thursday, December 22nd, 6:00pm: Intro to Data Science with R](https://www.meetup.com/Byte-Academy-Finance-and-Technology-community/events/236199452/) <br>
-[Tuesday, December 27th, 6:00pm: Python vs R for Data Science](https://www.meetup.com/Byte-Academy-Finance-and-Technology-community/events/236203310/)
 
