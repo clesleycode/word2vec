@@ -238,6 +238,31 @@ Fine-Tuning refers to the technique of initializing a network with parameters fr
 
 GloVe is an unsupervised learning algorithm for obtaining vector representations (embeddings) for words. GloVe vectors serve the same purpose as word2vec but have different vector representations due to being trained on co-occurrence statistics.
 
+### 1.9 Tensorflow
+
+TensorFlow is an open source library for numerical computation using data flow graphs. We'll be using Tensorflow to implement a CNN for Text Classification later.
+
+#### 1.9.1 Tensors
+
+Tensors are geometric objects that describe linear relations between geometric vectors, scalars, and other tensors. Elementary examples of such relations include the dot product, the cross product, and linear maps. Geometric vectors, often used in physics and engineering applications, and scalars themselves are also tensors.
+
+#### 1.9.2 Sessions
+
+In TensorFlow, a Session is the environment you execute graph operations in, which contains the state of Variables and queues. Each session operates on a single graph. 
+
+#### 1.9.3 Graphs
+
+A Graph contains operations and tensors. You can use multiple graphs in your program, but most programs only need a single graph. You can use the same graph in multiple sessions, but not multiple graphs in one session. TensorFlow always creates a default graph, but you may also create a graph manually and set it as the new default. Explicitly creating sessions and graphs ensures that resources are released properly when you no longer need them.
+
+#### 1.9.4 Summaries
+
+TensorFlow has summaries, which allow you to keep track of and visualize various quantities during training and evaluation. For example, you probably want to keep track of how your loss and accuracy evolve over time. You can also keep track of more complex quantities, such as histograms of layer activations.
+
+
+#### 1.9.5 Checkpoints
+
+Another TensorFlow feature you might use is checkpointing, which is when you save the parameters of your model to restore them later on. Checkpoints can be used to continue training at a later point, or to pick the best parameters setting using early stopping. 
+
 
 ## 2.0 LSTM Networks
 
@@ -490,6 +515,86 @@ with tf.name_scope("accuracy"):
 ```
 
 And so now we’re done with our network definition!
+
+
+#### Training
+
+First, we begin by instantiating our model. By doing so, all of our variables and operations will be placed into our default graphs and sessions. 
+
+``` python 
+cnn = TextCNN(
+    sequence_length=x_train.shape[1],
+    num_classes=2,
+    vocab_size=len(vocabulary),
+    embedding_size=FLAGS.embedding_dim,
+    filter_sizes=map(int, FLAGS.filter_sizes.split(",")),
+    num_filters=FLAGS.num_filters)
+```
+
+Next, we define how to optimize our network’s loss function. TensorFlow has several built-in optimizers. We’re using the Adam optimizer.
+
+``` python
+global_step = tf.Variable(0, name="global_step", trainable=False)
+optimizer = tf.train.AdamOptimizer(1e-4)
+grads_and_vars = optimizer.compute_gradients(cnn.loss)
+train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
+```
+
+- train_op: This is a newly created operation that we can run to perform a gradient update on our parameters. Each execution is a training step. TensorFlow automatically figures out which variables are “trainable” and calculates their gradients. 
+- global_step: By passing this to the optimizer we allow TensorFlow handle the counting of training steps for us. The global step will be automatically incremented by one every time you execute train_op.
+
+
+Now, before we can train our model we also need to initialize the variables in our graph.
+
+``` python
+sess.run(tf.initialize_all_variables())
+```
+
+Let’s now define a function for a single training step, evaluating the model on a batch of data and updating the model parameters.
+
+``` python
+def train_step(x_batch, y_batch):
+
+    feed_dict = {
+      cnn.input_x: x_batch,
+      cnn.input_y: y_batch,
+      cnn.dropout_keep_prob: FLAGS.dropout_keep_prob
+    }
+    _, step, summaries, loss, accuracy = sess.run(
+        [train_op, global_step, train_summary_op, cnn.loss, cnn.accuracy],
+        feed_dict)
+    time_str = datetime.datetime.now().isoformat()
+    print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+    train_summary_writer.add_summary(summaries, step)
+```
+
+- feed_dict: This contains the data for the placeholder nodes we pass to our network. You must feed values for all placeholder nodes, or TensorFlow will throw an error.
+-train_op: This actually returns nothing, it just updates the parameters of our network. 
+
+
+Finally, we’re ready to write our training loop. First we initialize the batches:
+
+``` python
+batches = data_helpers.batch_iter(
+    zip(x_train, y_train), FLAGS.batch_size, FLAGS.num_epochs)
+```
+
+Then we iterate over batches of our data, call the train_step function for each batch, and occasionally evaluate and checkpoint our model:
+
+```` python
+for batch in batches:
+    x_batch, y_batch = zip(*batch)
+    train_step(x_batch, y_batch)
+    current_step = tf.train.global_step(sess, global_step)
+    if current_step % FLAGS.evaluate_every == 0:
+        print("\nEvaluation:")
+        dev_step(x_dev, y_dev, writer=dev_summary_writer)
+        print("")
+    if current_step % FLAGS.checkpoint_every == 0:
+        path = saver.save(sess, checkpoint_prefix, global_step=current_step)
+        print("Saved model checkpoint to {}\n".format(path))
+
+
 
 
 ## 5.0 Final Words
