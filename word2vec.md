@@ -25,7 +25,7 @@ Brought to you by [Lesley Cordero](http://www.columbia.edu/~lc2958).
 	+ [4.2 Filters](#42-filters)
 - [5.0 Final Words](#60-final-words)
 	+ [5.1 Resources](#61-resources)
-
+    + [5.2 Mini Courses](#52-mini-courses)
 
 ## 0.0 Setup
 
@@ -42,6 +42,37 @@ pip3 install tensorflow
 pip3 install gensim
 pip3 install nltk
 ```
+
+### 0.3 Other
+
+If you haven't already, run the following command into your terminal
+
+```
+sudo python3 -m nltk.downloader all
+```
+
+### 0.4 Virtual Environment
+
+If you'd like to work in a virtual environment, you can set it up as follows: 
+```
+pip3 install virtualenv
+virtualenv your_env
+```
+And then launch it with: 
+```
+source your_env/bin/activate
+```
+
+To execute the visualizations in matplotlib, do the following:
+
+```
+cd ~/.matplotlib
+nano matplotlibrc
+```
+And then, write `backend: TkAgg` in the file. Now you should be set up with your virtual environment!
+
+Cool, now we're ready to start! 
+
 
 ## 1.0 Background
 
@@ -68,6 +99,7 @@ We will also want to remove any stopwords, such as a, am, an, also ,any, and, et
 Just as we've seen before, this is what that code might look like:
 
 ``` python
+from nltk import PorterStemmer
 stemmer = PorterStemmer()
 
 def removeStopWords(stopwords, list):
@@ -190,7 +222,7 @@ Put more mathematically, you can think of this relationship as:
 
 #### 1.5.1 Inputs
 
-The input of the skip-gram model is a single word, `w_n`. For example, in the following sentence:
+The input of the skip-gram model is a single word, w<sub>n</sub>. For example, in the following sentence:
 
 ``` 
 I drove my car to school.
@@ -201,20 +233,20 @@ I drove my car to school.
 
 #### 1.5.2 Outputs
 
-The output of a skip-gram model is the words in `w_n`s context. Going along with the example from before, the output would be:
+The output of a skip-gram model is the words in w<sub>n</sub>'s context. Going along with the example from before, the output would be:
 
 ``` 
 {"I","drove","my","to","school"}
 ```
 
-This output is defined as `{w_O,1 , ... , w_O,C }`, where C is the word window size that you define. 
+This output is defined as {w<sub>O</sub>,1 , ... , w<sub>O</sub>,C }, where C is the word window size that you define. 
 
 
 ### 1.6 Continuous Bag-of-Words model 
 
 #### 1.6.1 Inputs
 
-This input is defined as `{w_O,1 , ... , w_O,C }`, where C is the word window size that you define. For example, the input could be:
+This input is defined as {w<sub>O</sub>,1 , ... , w<sub>O</sub>,C }, where C is the word window size that you define. For example, the input could be:
 
 ``` 
 {"I","drove","my","to","school"}
@@ -222,7 +254,7 @@ This input is defined as `{w_O,1 , ... , w_O,C }`, where C is the word window si
 
 #### 1.6.2 Outputs 
 
-The output of the neural network will be `w_i`. Hence you can think of the task as "predicting the word given its context". Note that the number of words we use depends on your setting for the window size.
+The output of the neural network will be w<sub>i</sub>. Hence you can think of the task as "predicting the word given its context". Note that the number of words we use depends on your setting for the window size.
 
 ``` 
 I drove my car to school.
@@ -581,7 +613,7 @@ batches = data_helpers.batch_iter(
 
 Then we iterate over batches of our data, call the train_step function for each batch, and occasionally evaluate and checkpoint our model:
 
-```` python
+``` python
 for batch in batches:
     x_batch, y_batch = zip(*batch)
     train_step(x_batch, y_batch)
@@ -593,7 +625,7 @@ for batch in batches:
     if current_step % FLAGS.checkpoint_every == 0:
         path = saver.save(sess, checkpoint_prefix, global_step=current_step)
         print("Saved model checkpoint to {}\n".format(path))
-
+```
 
 
 
@@ -607,4 +639,19 @@ If you want to learn more about Deep Learning & Natural Language Processing, che
 [NLP from Scratch](https://arxiv.org/abs/1103.0398) <br>
 [Glove](http://nlp.stanford.edu/projects/glove/)
 
+
+### 5.2 Mini Courses
+
+Learn about courses [here](www.byteacademy.co/all-courses/data-science-mini-courses/).
+
+[Python 101: Data Science Prep](https://www.eventbrite.com/e/python-101-data-science-prep-tickets-30980459388) <br>
+[Intro to Data Science & Stats with R](https://www.eventbrite.com/e/data-sci-109-intro-to-data-science-statistics-using-r-tickets-30908877284) <br>
+[Data Acquisition Using Python & R](https://www.eventbrite.com/e/data-sci-203-data-acquisition-using-python-r-tickets-30980705123) <br>
+[Data Visualization with Python](https://www.eventbrite.com/e/data-sci-201-data-visualization-with-python-tickets-30980827489) <br>
+[Fundamentals of Machine Learning and Regression Analysis](https://www.eventbrite.com/e/data-sci-209-fundamentals-of-machine-learning-and-regression-analysis-tickets-30980917759) <br>
+[Natural Language Processing with Data Science](https://www.eventbrite.com/e/data-sci-210-natural-language-processing-with-data-science-tickets-30981006023) <br>
+[Machine Learning with Data Science](https://www.eventbrite.com/e/data-sci-309-machine-learning-with-data-science-tickets-30981154467) <br>
+[Databases & Big Data](https://www.eventbrite.com/e/data-sci-303-databases-big-data-tickets-30981182551) <br>
+[Deep Learning with Data Science](https://www.eventbrite.com/e/data-sci-403-deep-learning-with-data-science-tickets-30981221668) <br>
+[Data Sci 500: Projects](https://www.eventbrite.com/e/data-sci-500-projects-tickets-30981330995)
 
