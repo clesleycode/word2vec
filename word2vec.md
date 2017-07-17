@@ -178,7 +178,7 @@ def makeVector(wordString):
 
 We now have the ability to find related documents. We can test if two documents are in the same concept space by looking at the the cosine of the angle between the document vectors. We use the cosine of the angle as a metric for comparison. If the cosine is 1 then the angle is 0° and hence the vectors are parallel (and the document terms are related). If the cosine is 0 then the angle is 90° and the vectors are perpendicular (and the document terms are not related).
 
-We calculate the cosine between the document vectors in python using scipy.
+We calculate the cosine between the document vectors in python using `scipy`.
 
 ``` python
 def cosine(vector1, vector2):
