@@ -97,7 +97,7 @@ Cool, now we're ready to start!
 
 ## 1.0 Background
 
-Working off of the knowledge we gained from the [Intro NLP](learn.adicu.com/nlp), [Intermediate NLP](learn.adicu.com/intermediate-nlp), and [Deep Learning](learn.adicu.com/dl-python) workshops, we'll spend this tutorial covering the basics of how these fields intersect. 
+Working off of the knowledge we gained from previous workshops, we'll spend this tutorial covering the basics of how Deep Learning and Natural Language Processing fields intersect. 
 
 With that said, we'll begin by overviewing some of the fundamental concepts of this intersection.  
 
@@ -105,11 +105,9 @@ With that said, we'll begin by overviewing some of the fundamental concepts of t
 
 A vector space search involves converting documents into vectors, where each dimension within the vectors represents a term. VSMs represent embedded words in a continuous vector space where semantically similar words are mapped to nearby points. 
 
-
 #### 1.1.1 Distributional Hypothesis
 
 Vector Space Model methods depend highly on the Distributional Hypothesis, which states that words that appear in the same contexts share semantic meaning. The different approaches that leverage this principle can be divided into two categories: count-based methods and predictive methods. 
-
 
 #### 1.1.2 Stemming & Stop Words
 
