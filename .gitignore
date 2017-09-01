@@ -1,1 +1,4 @@
-*.html
+*.pyc
+*.pyo
+.ipynb/
+__pycache__/
